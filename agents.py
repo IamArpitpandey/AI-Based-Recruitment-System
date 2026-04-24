@@ -1,47 +1,49 @@
 import streamlit as st
 from phi.agent import Agent
-from phi.model.mistral import MistralChat
-from phi.model.anthropic import Claude
-from phi.model.openai import OpenAIChat
 from phi.tools.email import EmailTools
 from tools import CustomZoomTool
+import google.generativeai as genai
 
 
+# 🔥 Gemini Model Wrapper
+class GeminiModel:
+    def __init__(self, api_key):
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
+
+    def generate(self, prompt):
+        response = self.model.generate_content(prompt)
+        return response.text
+
+
+# 🔥 Model selector
 def get_the_model():
-    mdoel_provider = st.session_state.model_provider
-    model_function_map = {
-        "OpenAI": OpenAIChat(id="gpt-4o", api_key=st.session_state.api_key),
-        "Mistral": MistralChat(
-            id="mistral-large-latest", api_key=st.session_state.api_key
-        ),
-        "Claude": Claude(
-            id="claude-3-5-sonnet-latest", api_key=st.session_state.api_key
-        ),
-    }
-    return model_function_map[mdoel_provider]
+    return GeminiModel(api_key=st.session_state.api_key)
 
 
-def create_resume_analyzer_agent() -> Agent:
-    """Creates and returns a resume analysis agent."""
+# 🔥 Resume Analyzer
+def create_resume_analyzer_agent():
     if not st.session_state.api_key:
-        st.error("Please enter your API Key first.")
+        st.error("Please enter your Gemini API Key first.")
         return None
 
+    model = get_the_model()
+
     return Agent(
-        model=get_the_model(),
-        description="You are an expert technical recruiter who analyzes resumes.",
+        model=model,
+        description="You are an expert technical recruiter.",
         instructions=[
-            "Analyze the resume against the provided job requirements",
-            "Be lenient with AI/ML candidates who show strong potential",
-            "Consider project experience as valid experience",
-            "Value hands-on experience with key technologies",
-            "Return a JSON response with selection decision and feedback",
+            "Analyze resume vs job description",
+            "Give selection decision (Selected/Rejected)",
+            "Give improvement feedback",
+            "Return clean structured response",
         ],
         markdown=True,
     )
 
 
-def create_email_agent() -> Agent:
+# 🔥 Email Agent
+def create_email_agent():
     return Agent(
         model=get_the_model(),
         tools=[
@@ -52,22 +54,18 @@ def create_email_agent() -> Agent:
                 sender_passkey=st.session_state.email_passkey,
             )
         ],
-        description="You are a professional recruitment coordinator handling email communications.",
+        description="You write professional HR emails.",
         instructions=[
-            "Draft and send professional recruitment emails",
-            "Properly formatted (Headers, Bullet points, Paragraphs and CamcelCase) without markdown email should be written."
-            "Act like a human writing an email and use all lowercase letters",
-            "Maintain a friendly yet professional tone",
-            "Always end emails with exactly: 'best,\nthe ai recruiting team'",
-            "Never include the sender's or receiver's name in the signature",
-            f"The name of the company is '{st.session_state.company_name}'",
+            "Write clean professional email",
+            "Keep friendly tone",
+            "End with: best, the ai recruiting team",
         ],
         markdown=False,
-        show_tool_calls=False,
     )
 
 
-def create_scheduler_agent() -> Agent:
+# 🔥 Scheduler Agent
+def create_scheduler_agent():
     zoom_tools = CustomZoomTool(
         account_id=st.session_state.zoom_account_id,
         client_id=st.session_state.zoom_client_id,
@@ -78,16 +76,11 @@ def create_scheduler_agent() -> Agent:
         name="Interview Scheduler",
         model=get_the_model(),
         tools=[zoom_tools],
-        description="You are an interview scheduling coordinator.",
+        description="Schedules interviews using Zoom.",
         instructions=[
-            "You are an expert at scheduling technical interviews using Zoom.",
-            "Schedule interviews during business hours (9 AM - 5 PM EST)",
-            "Create meetings with proper titles and descriptions",
-            "Ensure all meeting details are included in responses",
-            "Use ISO 8601 format for dates",
-            "Handle scheduling errors gracefully",
+            "Schedule interview next day",
+            "Include meeting link",
+            "Use proper time format",
         ],
         markdown=False,
-        show_tool_calls=False,
     )
-

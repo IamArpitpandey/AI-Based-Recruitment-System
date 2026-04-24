@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+phidataagents.egg-info/PKG-INFO
+phidataagents.egg-info/SOURCES.txt
+phidataagents.egg-info/dependency_links.txt
+phidataagents.egg-info/requires.txt
+phidataagents.egg-info/top_level.txt
